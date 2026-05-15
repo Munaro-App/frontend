@@ -58,3 +58,7 @@ GoogleService-Info.plist
 # Environment
 .env
 .env.*g
+
+linux/
+test/
+

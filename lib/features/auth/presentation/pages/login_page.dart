@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
+
 import '../widgets/email_login_form.dart';
 import '../widgets/social_login_button.dart';
+
 import 'signup_page.dart';
 
 class LoginPage extends ConsumerWidget {
@@ -15,11 +19,13 @@ class LoginPage extends ConsumerWidget {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 32,
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.xxl,
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(
+                maxWidth: 420,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -35,7 +41,7 @@ class LoginPage extends ConsumerWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
 
                   const Text(
                     '여행 기록 플랫폼',
@@ -50,7 +56,7 @@ class LoginPage extends ConsumerWidget {
 
                   const EmailLoginForm(),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AppSpacing.xxl),
 
                   PrimaryButton(
                     text: '이메일 로그인',
@@ -66,8 +72,11 @@ class LoginPage extends ConsumerWidget {
                           color: Colors.grey.shade300,
                         ),
                       ),
+
                       const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                        ),
                         child: Text(
                           '간편 로그인',
                           style: TextStyle(
@@ -75,6 +84,7 @@ class LoginPage extends ConsumerWidget {
                           ),
                         ),
                       ),
+
                       Expanded(
                         child: Divider(
                           color: Colors.grey.shade300,
@@ -94,7 +104,7 @@ class LoginPage extends ConsumerWidget {
                         onPressed: () {},
                       ),
 
-                      const SizedBox(width: 20),
+                      const SizedBox(width: AppSpacing.lg),
 
                       SocialLoginButton(
                         assetPath: 'assets/icons/google.png',
@@ -104,12 +114,13 @@ class LoginPage extends ConsumerWidget {
                     ],
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AppSpacing.xxl),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text('계정이 없으신가요?'),
+
                       TextButton(
                         onPressed: () {
                           Navigator.push(

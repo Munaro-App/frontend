@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
+import 'auth_text_field.dart';
+
 class EmailLoginForm extends StatelessWidget {
   final bool isSignup;
 
@@ -12,42 +16,30 @@ class EmailLoginForm extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        TextField(
-          decoration: _inputDecoration('이메일'),
+        const AuthTextField(
+          hintText: '이메일',
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(
+          height: AppSpacing.lg,
+        ),
 
-        TextField(
-          obscureText: true,
-          decoration: _inputDecoration('비밀번호'),
+        const AuthTextField(
+          hintText: '비밀번호',
+          isPassword: true,
         ),
 
         if (isSignup) ...[
-          const SizedBox(height: 20),
+          const SizedBox(
+            height: AppSpacing.lg,
+          ),
 
-          TextField(
-            obscureText: true,
-            decoration: _inputDecoration('비밀번호 확인'),
+          const AuthTextField(
+            hintText: '비밀번호 확인',
+            isPassword: true,
           ),
         ],
       ],
-    );
-  }
-
-  InputDecoration _inputDecoration(String hintText) {
-    return InputDecoration(
-      hintText: hintText,
-      filled: true,
-      fillColor: Colors.grey.shade100,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 18,
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
     );
   }
 }

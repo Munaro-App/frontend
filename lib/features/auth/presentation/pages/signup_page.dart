@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/buttons/primary_button.dart';
+
 import '../widgets/email_login_form.dart';
 
 class SignupPage extends ConsumerWidget {
@@ -16,19 +18,19 @@ class SignupPage extends ConsumerWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 32,
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.xxl,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.lg),
 
               const EmailLoginForm(
                 isSignup: true,
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xxl),
 
               PrimaryButton(
                 text: '회원가입',

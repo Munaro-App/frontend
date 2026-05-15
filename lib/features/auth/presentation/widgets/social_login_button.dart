@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 class SocialLoginButton extends StatelessWidget {
   final String assetPath;
   final VoidCallback onPressed;
@@ -27,7 +29,9 @@ class SocialLoginButton extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(
+            AppSpacing.md,
+          ),
           child: Image.asset(
             assetPath,
             fit: BoxFit.contain,
