@@ -13,7 +13,7 @@ class _ApiConfig {
   // 백엔드 서버 기본 주소
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8080',
+    defaultValue: 'http://localhost:8080',
   );
 
   // 10초 동안 응답이 없으면 에러
