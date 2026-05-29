@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/buttons/primary_button.dart';
+import 'login_layout.dart';
 
-import '../widgets/email_login_form.dart';
+// 회원가입 화면
 
 class SignupPage extends ConsumerWidget {
   const SignupPage({super.key});
@@ -18,25 +17,18 @@ class SignupPage extends ConsumerWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
-            vertical: AppSpacing.xxl,
+            horizontal: 24,
+            vertical: 32,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: AppSpacing.lg),
-
-              const EmailLoginForm(
-                isSignup: true,
-              ),
-
-              const SizedBox(height: AppSpacing.xxl),
-
-              PrimaryButton(
+              const SizedBox(height: 20),
+              const LoginEmailForm(isSignup: true),
+              const SizedBox(height: 32),
+              LoginPrimaryButton(
                 text: '회원가입',
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
