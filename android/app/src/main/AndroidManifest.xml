@@ -8,31 +8,29 @@
         
         <meta-data
             android:name="com.kakao.sdk.AppKey"
-            android:value="33245cd343b0a0c7160926b6cd4f5615" />
-
-<activity 
-    android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
-    android:exported="true">
-    <intent-filter android:label="flutter_web_auth">
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-        <data android:scheme="kakao33245cd343b0a0c7160926b6cd4f5615" android:host="oauth"/>
-    </intent-filter>
-</activity>
+            android:value="${kakaoAppKey}" />
 
         <activity 
-    android:name="com.kakao.sdk.flutter.AuthCodeHandlerActivity"
-    android:exported="true">
-    <intent-filter>
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
+            android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
+            android:exported="true">
+            <intent-filter android:label="flutter_web_auth">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kakao${kakaoAppKey}" android:host="oauth"/>
+            </intent-filter>
+        </activity>
 
-        <data android:scheme="kakao{33245cd343b0a0c7160926b6cd4f5615}" android:host="oauth"/>
-    </intent-filter>
-</activity>
-
+        <activity 
+            android:name="com.kakao.sdk.flutter.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kakao${kakaoAppKey}" android:host="oauth"/>
+            </intent-filter>
+        </activity>
         
         <activity
             android:name=".MainActivity"
