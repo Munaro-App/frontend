@@ -8,7 +8,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   const kakaoAppKey = String.fromEnvironment(
-    'NATIVE_APP_KEY',
+    'KAKAO_NATIVE_APP_KEY',
     defaultValue: '',
   );
 

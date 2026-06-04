@@ -10,13 +10,11 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 // API 설정 및 네트워크 통신
 class _ApiConfig {
-  // 백엔드 서버 기본 주소
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://localhost:8080',
   );
 
-  // 10초 동안 응답이 없으면 에러
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 10);
 }
@@ -204,6 +202,12 @@ abstract class AuthRepository {
     required String email,
     required String password,
   });
+
+  Future<void> signUpWithEmail({
+    required String email,
+    required String password,
+    required String nickname,
+  });
 }
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -262,6 +266,25 @@ class AuthRepositoryImpl implements AuthRepository {
       throw Exception(message);
     }
   }
+
+  @override
+  Future<void> signUpWithEmail({
+    required String email,
+    required String password,
+    required String nickname,
+  }) async {
+    try {
+      await dio.post(
+        '/auth/email/signup',
+        data: {'email': email, 'password': password, 'nickname': nickname}, 
+      );
+    } on DioException catch (e) {
+      final message = e.response?.data is Map
+          ? (e.response?.data['message'] ?? '회원가입 실패')
+          : '회원가입 실패';
+      throw Exception(message);
+    }
+  }
 }
 
 // USECASE
@@ -304,6 +327,20 @@ class SignInWithEmailUseCase {
   }
 }
 
+  class SignUpWithEmailUseCase {
+  final AuthRepository repository;
+
+  SignUpWithEmailUseCase({required this.repository});
+
+  Future<void> execute(String email, String password, String nickname) async { 
+    if (email.isEmpty || password.isEmpty || nickname.isEmpty) { 
+      throw Exception('이메일, 비밀번호, 닉네임을 모두 입력해주세요.');
+    }
+    return repository.signUpWithEmail(email: email, password: password, nickname: nickname);
+  }
+}
+
+
 class SignInWithGoogleUseCase {
   final GoogleAuthDataSource googleAuthDataSource;
   final AuthRepository repository;
@@ -343,7 +380,11 @@ final _signInWithKakaoUseCaseProvider = Provider<SignInWithKakaoUseCase>((ref) {
   return SignInWithKakaoUseCase(
     kakaoAuthDataSource: ref.watch(_kakaoAuthDataSourceProvider),
     repository: ref.watch(_authRepositoryProvider),
-  );
+  );},
+);
+
+final _signUpWithEmailUseCaseProvider = Provider<SignUpWithEmailUseCase>((ref) {
+  return SignUpWithEmailUseCase(repository: ref.watch(_authRepositoryProvider));
 });
 
 final _signInWithGoogleUseCaseProvider = Provider<SignInWithGoogleUseCase>((
@@ -365,6 +406,7 @@ final authControllerProvider =
         signInWithKakao: ref.watch(_signInWithKakaoUseCaseProvider),
         signInWithGoogle: ref.watch(_signInWithGoogleUseCaseProvider),
         signInWithEmail: ref.watch(_signInWithEmailUseCaseProvider),
+        signUpWithEmail: ref.watch(_signUpWithEmailUseCaseProvider),
         tokenStorage: ref.watch(_tokenStorageProvider),
       );
     });
@@ -373,12 +415,14 @@ class AuthController extends StateNotifier<AsyncValue<AuthModel?>> {
   final SignInWithKakaoUseCase signInWithKakao;
   final SignInWithGoogleUseCase signInWithGoogle;
   final SignInWithEmailUseCase signInWithEmail;
+  final SignUpWithEmailUseCase signUpWithEmail;
   final TokenStorage tokenStorage;
 
   AuthController({
     required this.signInWithKakao,
     required this.signInWithGoogle,
     required this.signInWithEmail,
+    required this.signUpWithEmail,
     required this.tokenStorage,
   }) : super(const AsyncData(null));
 
@@ -396,6 +440,8 @@ class AuthController extends StateNotifier<AsyncValue<AuthModel?>> {
     // 로딩
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      // try { await UserApi.instance.unlink(); } catch(e) {} // 동의 항목
+
       // USECASE에서 토큰을 받아옴
       final auth = await signInWithKakao.execute();
       // 토큰 저장
@@ -412,6 +458,17 @@ class AuthController extends StateNotifier<AsyncValue<AuthModel?>> {
       await tokenStorage.save(auth);
       return auth;
     });
+
+    
+  }
+
+ Future<void> signUpWithEmailPressed(String email, String password, String nickname) async {
+  state = const AsyncLoading();
+  state = await AsyncValue.guard(() async {
+    await signUpWithEmail.execute(email, password, nickname);
+    
+    return null; 
+  });
   }
 
   Future<void> logout() async {
@@ -485,6 +542,7 @@ class _LoginAuthTextFieldState extends State<LoginAuthTextField> {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: widget.controller,
       obscureText: _obscureText,
       decoration: InputDecoration(
         hintText: widget.hintText,
@@ -526,6 +584,7 @@ class LoginEmailForm extends StatelessWidget {
   final TextEditingController? emailController;
   final TextEditingController? passwordController;
   final TextEditingController? passwordConfirmController;
+  final TextEditingController? nicknameController; 
 
   const LoginEmailForm({
     super.key,
@@ -533,24 +592,29 @@ class LoginEmailForm extends StatelessWidget {
     this.emailController,
     this.passwordController,
     this.passwordConfirmController,
+    this.nicknameController, 
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        if (isSignup) ...[
+          LoginAuthTextField(hintText: '닉네임', controller: nicknameController),
+          const SizedBox(height: 20),
+        ],
         LoginAuthTextField(hintText: '이메일', controller: emailController),
         const SizedBox(height: 20),
         LoginAuthTextField(
           hintText: '비밀번호',
-          isPassword: true,
+          isPassword: true, 
           controller: passwordController,
         ),
         if (isSignup) ...[
           const SizedBox(height: 20),
           LoginAuthTextField(
             hintText: '비밀번호 확인',
-            isPassword: true,
+            isPassword: true, 
             controller: passwordConfirmController,
           ),
         ],
@@ -563,7 +627,7 @@ class _SocialLoginButton extends StatelessWidget {
   final String assetPath;
   final VoidCallback onPressed;
   final Color backgroundColor;
-
+  
   const _SocialLoginButton({
     required this.assetPath,
     required this.onPressed,
@@ -603,18 +667,20 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nicknameController = TextEditingController();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nicknameController.dispose();
     super.dispose();
   }
 
   void _onEmailLoginPressed() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-
+    
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(
         context,
