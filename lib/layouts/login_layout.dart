@@ -15,6 +15,7 @@ class _ApiConfig {
     defaultValue: 'http://localhost:8080',
   );
 
+  // 10초 동안 응답이 없으면 에러
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 10);
 }
