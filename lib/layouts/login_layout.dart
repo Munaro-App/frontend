@@ -7,15 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // API 설정 및 네트워크 통신
 class _ApiConfig {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:8080',
-  );
+  static String get baseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080';
 
-  // 10초 동안 응답이 없으면 에러
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 10);
 }
@@ -175,8 +173,7 @@ class KakaoAuthDataSource {
 class GoogleAuthDataSource {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId:
-        '408653349037-nk70rag6j78mh4nu3jkalrlscg3vd34g.apps.googleusercontent.com',
+    serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
   );
 
   Future<String?> login() async {
@@ -846,21 +843,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     const SizedBox(width: 20),
 
-    Container(
-  width: 64,
-  height: 64,
-  decoration: BoxDecoration(
-    color: Colors.white,
-    shape: BoxShape.circle,
-    border: Border.all(
-      color: Colors.grey.shade300,
-      width: 1,
+    GestureDetector(
+  onTap: _onGoogleLoginPressed,
+  child: Container(
+    width: 64,
+    height: 64,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: Colors.grey.shade300,
+        width: 1,
+      ),
     ),
-  ),
-  child: Padding(
-    padding: const EdgeInsets.all(8),
-    child: Image.asset(
-      'assets/icons/google.png',
+    child: Padding(
+      padding: const EdgeInsets.all(8),
+      child: Image.asset(
+        'assets/icons/google.png',
+      ),
     ),
   ),
 )
