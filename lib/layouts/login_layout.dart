@@ -7,16 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // API 설정 및 네트워크 통신
 class _ApiConfig {
-  // 백엔드 서버 기본 주소
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:8080',
-  );
+  static String get baseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080';
 
-  // 10초 동안 응답이 없으면 에러
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 10);
 }
@@ -174,15 +171,22 @@ class KakaoAuthDataSource {
 }
 
 class GoogleAuthDataSource {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
+  );
 
   Future<String?> login() async {
     try {
       final account = await _googleSignIn.signIn();
-      if (account == null) return null;
+      if (account == null) {
+        print("사용자가 구글 로그인을 취소했습니다.");
+        return null;
+      }
 
       final auth = await account.authentication;
-      return auth.idToken;
+
+      return auth.accessToken;
     } catch (e) {
       log(e.toString());
       return null;
@@ -203,6 +207,12 @@ abstract class AuthRepository {
   Future<AuthModel> loginWithEmail({
     required String email,
     required String password,
+  });
+
+  Future<void> signUpWithEmail({
+    required String email,
+    required String password,
+    required String nickname,
   });
 }
 
@@ -262,6 +272,25 @@ class AuthRepositoryImpl implements AuthRepository {
       throw Exception(message);
     }
   }
+
+  @override
+  Future<void> signUpWithEmail({
+    required String email,
+    required String password,
+    required String nickname,
+  }) async {
+    try {
+      await dio.post(
+        '/auth/email/signup',
+        data: {'email': email, 'password': password, 'nickname': nickname},
+      );
+    } on DioException catch (e) {
+      final message = e.response?.data is Map
+          ? (e.response?.data['message'] ?? '회원가입 실패')
+          : '회원가입 실패';
+      throw Exception(message);
+    }
+  }
 }
 
 // USECASE
@@ -301,6 +330,23 @@ class SignInWithEmailUseCase {
       throw Exception('이메일과 비밀번호를 입력해주세요.');
     }
     return repository.loginWithEmail(email: email, password: password);
+  }
+}
+
+class SignUpWithEmailUseCase {
+  final AuthRepository repository;
+
+  SignUpWithEmailUseCase({required this.repository});
+
+  Future<void> execute(String email, String password, String nickname) async {
+    if (email.isEmpty || password.isEmpty || nickname.isEmpty) {
+      throw Exception('이메일, 비밀번호, 닉네임을 모두 입력해주세요.');
+    }
+    return repository.signUpWithEmail(
+      email: email,
+      password: password,
+      nickname: nickname,
+    );
   }
 }
 
@@ -346,6 +392,10 @@ final _signInWithKakaoUseCaseProvider = Provider<SignInWithKakaoUseCase>((ref) {
   );
 });
 
+final _signUpWithEmailUseCaseProvider = Provider<SignUpWithEmailUseCase>((ref) {
+  return SignUpWithEmailUseCase(repository: ref.watch(_authRepositoryProvider));
+});
+
 final _signInWithGoogleUseCaseProvider = Provider<SignInWithGoogleUseCase>((
   ref,
 ) {
@@ -365,6 +415,7 @@ final authControllerProvider =
         signInWithKakao: ref.watch(_signInWithKakaoUseCaseProvider),
         signInWithGoogle: ref.watch(_signInWithGoogleUseCaseProvider),
         signInWithEmail: ref.watch(_signInWithEmailUseCaseProvider),
+        signUpWithEmail: ref.watch(_signUpWithEmailUseCaseProvider),
         tokenStorage: ref.watch(_tokenStorageProvider),
       );
     });
@@ -373,12 +424,14 @@ class AuthController extends StateNotifier<AsyncValue<AuthModel?>> {
   final SignInWithKakaoUseCase signInWithKakao;
   final SignInWithGoogleUseCase signInWithGoogle;
   final SignInWithEmailUseCase signInWithEmail;
+  final SignUpWithEmailUseCase signUpWithEmail;
   final TokenStorage tokenStorage;
 
   AuthController({
     required this.signInWithKakao,
     required this.signInWithGoogle,
     required this.signInWithEmail,
+    required this.signUpWithEmail,
     required this.tokenStorage,
   }) : super(const AsyncData(null));
 
@@ -396,6 +449,8 @@ class AuthController extends StateNotifier<AsyncValue<AuthModel?>> {
     // 로딩
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      // try { await UserApi.instance.unlink(); } catch(e) {} // 동의 항목
+
       // USECASE에서 토큰을 받아옴
       final auth = await signInWithKakao.execute();
       // 토큰 저장
@@ -414,6 +469,19 @@ class AuthController extends StateNotifier<AsyncValue<AuthModel?>> {
     });
   }
 
+  Future<void> signUpWithEmailPressed(
+    String email,
+    String password,
+    String nickname,
+  ) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await signUpWithEmail.execute(email, password, nickname);
+
+      return null;
+    });
+  }
+
   Future<void> logout() async {
     // 로그아웃시 클리어
     await tokenStorage.clear();
@@ -424,7 +492,7 @@ class AuthController extends StateNotifier<AsyncValue<AuthModel?>> {
 // UI
 class LoginPrimaryButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback ? onPressed;
 
   const LoginPrimaryButton({
     super.key,
@@ -485,6 +553,7 @@ class _LoginAuthTextFieldState extends State<LoginAuthTextField> {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: widget.controller,
       obscureText: _obscureText,
       decoration: InputDecoration(
         hintText: widget.hintText,
@@ -526,6 +595,7 @@ class LoginEmailForm extends StatelessWidget {
   final TextEditingController? emailController;
   final TextEditingController? passwordController;
   final TextEditingController? passwordConfirmController;
+  final TextEditingController? nicknameController;
 
   const LoginEmailForm({
     super.key,
@@ -533,12 +603,17 @@ class LoginEmailForm extends StatelessWidget {
     this.emailController,
     this.passwordController,
     this.passwordConfirmController,
+    this.nicknameController,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        if (isSignup) ...[
+          LoginAuthTextField(hintText: '닉네임', controller: nicknameController),
+          const SizedBox(height: 20),
+        ],
         LoginAuthTextField(hintText: '이메일', controller: emailController),
         const SizedBox(height: 20),
         LoginAuthTextField(
@@ -559,39 +634,42 @@ class LoginEmailForm extends StatelessWidget {
   }
 }
 
+
 class _SocialLoginButton extends StatelessWidget {
-  final String assetPath;
-  final VoidCallback onPressed;
+  final String imagePath;
   final Color backgroundColor;
+  final VoidCallback onTap;
+  final Border? border;
 
   const _SocialLoginButton({
-    required this.assetPath,
-    required this.onPressed,
+    required this.imagePath,
     required this.backgroundColor,
+    required this.onTap,
+    this.border,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onPressed,
+      onTap: onTap,
       child: Container(
-        width: 64,
-        height: 64,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: backgroundColor,
-          border: Border.all(color: Colors.grey.shade300),
+          border: border,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Image.asset(assetPath, fit: BoxFit.contain),
+        child: CircleAvatar(
+          radius: 32,
+          backgroundColor: backgroundColor,
+          child: Image.asset(
+            imagePath,
+            fit: BoxFit.contain,
+          ),
         ),
       ),
     );
   }
 }
 
-// 로그인 화면
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -603,15 +681,17 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nicknameController = TextEditingController();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nicknameController.dispose();
     super.dispose();
   }
 
-  void _onEmailLoginPressed() async {
+  Future<void> _onEmailLoginPressed() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -627,12 +707,57 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         .signInWithEmailPressed(email, password);
 
     final state = ref.read(authControllerProvider);
+
     state.whenOrNull(
       data: (auth) {
         if (auth != null) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('이메일 로그인 성공')));
+        }
+      },
+      error: (error, _) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      },
+    );
+  }
+
+  Future<void> _onKakaoLoginPressed() async {
+    await ref.read(authControllerProvider.notifier).signInWithKakaoPressed();
+
+    if (!mounted) return;
+
+    final state = ref.read(authControllerProvider);
+
+    state.whenOrNull(
+      data: (auth) {
+        if (auth != null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('카카오 로그인 성공')));
+        }
+      },
+      error: (error, _) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      },
+    );
+  }
+
+  Future<void> _onGoogleLoginPressed() async {
+    await ref.read(authControllerProvider.notifier).signInWithGooglePressed();
+
+    final state = ref.read(authControllerProvider);
+
+    state.whenOrNull(
+      data: (auth) {
+        if (auth != null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('구글 로그인 성공')));
         }
       },
       error: (error, _) {
@@ -658,6 +783,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 60),
+
                   const Text(
                     '무나로',
                     textAlign: TextAlign.center,
@@ -667,12 +793,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       color: Colors.deepPurple,
                     ),
                   ),
+
                   const SizedBox(height: 12),
+
                   const Text(
                     '여행 기록 플랫폼',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
+
                   const SizedBox(height: 56),
 
                   LoginEmailForm(
@@ -688,6 +817,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
 
                   const SizedBox(height: 28),
+
                   Row(
                     children: [
                       Expanded(child: Divider(color: Colors.grey.shade300)),
@@ -701,73 +831,50 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       Expanded(child: Divider(color: Colors.grey.shade300)),
                     ],
                   ),
+
                   const SizedBox(height: 28),
+
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _SocialLoginButton(
-                        assetPath: 'assets/icons/kakao.png',
-                        backgroundColor: const Color(0xFFFEE500),
-                        onPressed: () async {
-                          await ref
-                              .read(authControllerProvider.notifier)
-                              .signInWithKakaoPressed();
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    _SocialLoginButton(
+      imagePath: 'assets/icons/kakao.png',
+      backgroundColor: Colors.white,
+      onTap: _onKakaoLoginPressed,
+    ),
 
-                          final state = ref.read(authControllerProvider);
+    const SizedBox(width: 20),
 
-                          state.whenOrNull(
-                            data: (auth) {
-                              if (auth != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('카카오 로그인 성공')),
-                                );
-                              }
-                            },
-                            error: (error, _) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(error.toString())),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 20),
-                      _SocialLoginButton(
-                        assetPath: 'assets/icons/google.png',
-                        backgroundColor: Colors.white,
-                        onPressed: () async {
-                          await ref
-                              .read(authControllerProvider.notifier)
-                              .signInWithGooglePressed();
-
-                          final state = ref.read(authControllerProvider);
-
-                          state.whenOrNull(
-                            data: (auth) {
-                              if (auth != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('구글 로그인 성공')),
-                                );
-                              }
-                            },
-                            error: (error, _) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(error.toString())),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-
-                  // 로딩 상태 표시
+    GestureDetector(
+  onTap: _onGoogleLoginPressed,
+  child: Container(
+    width: 64,
+    height: 64,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: Colors.grey.shade300,
+        width: 1,
+      ),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(8),
+      child: Image.asset(
+        'assets/icons/google.png',
+      ),
+    ),
+  ),
+)
+  ],
+),
                   if (authState.isLoading) ...[
                     const SizedBox(height: 24),
                     const Center(child: CircularProgressIndicator()),
                   ],
 
                   const SizedBox(height: 32),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
