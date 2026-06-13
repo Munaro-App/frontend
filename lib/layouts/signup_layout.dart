@@ -102,7 +102,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
 
               LoginPrimaryButton(
                 text: '회원가입',
-                onPressed: authState.isLoading ? () {} : _onSignupPressed,
+                onPressed: authState.isLoading ? null : _onSignupPressed,
               ),
             ],
           ),

@@ -492,7 +492,7 @@ class AuthController extends StateNotifier<AsyncValue<AuthModel?>> {
 // UI
 class LoginPrimaryButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback ? onPressed;
 
   const LoginPrimaryButton({
     super.key,
@@ -726,6 +726,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _onKakaoLoginPressed() async {
     await ref.read(authControllerProvider.notifier).signInWithKakaoPressed();
+
+    if (!mounted) return;
 
     final state = ref.read(authControllerProvider);
 
